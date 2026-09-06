@@ -92,7 +92,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
                 content_type: "text",
               },
             ],
-            auto_save_history: false,
+            auto_save_history: true,
           }),
         });
 
