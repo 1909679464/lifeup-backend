@@ -190,7 +190,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
               content_type: "text",
             },
           ],
-          auto_save_history: false,
+          auto_save_history: true,
         }),
       });
 
@@ -331,7 +331,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
             content_type: 'text',
           },
         ],
-        auto_save_history: false,
+        auto_save_history: true,
       }),
     });
 
