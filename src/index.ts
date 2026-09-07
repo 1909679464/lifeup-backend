@@ -273,7 +273,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
                 content_type: "text",
               },
             ],
-            auto_save_history: false,
+            auto_save_history: true,
           }),
         });
 
