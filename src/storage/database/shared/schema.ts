@@ -18,7 +18,7 @@ export const outfitBloggers = pgTable(
     style: varchar("style", { length: 50 }).notNull(), // 风格：商务正装、休闲通勤等
     blogger_name: varchar("blogger_name", { length: 200 }).notNull(), // 博主名称
     platform: varchar("platform", { length: 50 }).notNull(), // 平台：小红书、抖音
-    followers: varchar("followers", { length: 50 }), // 粉丝数
+    followers: varchar("followers", { length: 50 }), // 粉丝数（整数；由 parseFollowers 从 "12万+" 等文本转换而来）
     search_keyword: varchar("search_keyword", { length: 200 }).notNull(), // 主要搜索关键词
     fallback_keywords: jsonb("fallback_keywords"), // 备选关键词数组
     reason: text("reason"), // 推荐理由
