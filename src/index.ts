@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { getActiveBloggers, saveBloggers, searchBloggersFromCoze, verifyAllBloggers } from './services/bloggerService';
+import { getActiveBloggers, saveBloggers, searchBloggersFromCoze, verifyAllBloggers, extractAiText, extractJsonContaining, parseFollowers } from './services/bloggerService';
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -168,10 +168,10 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
 
     const messageResult: any = await messageResponse.json();
     
-    // 提取 AI 回复
+    // 提取 AI 回复（兼容 content 为字符串或多段数组）
     const messages = messageResult.data || [];
-    const aiMessage = messages.find((msg: any) => msg.role === 'assistant');
-    const suggestion = aiMessage?.content || '暂无建议';
+    const aiText = extractAiText(messages);
+    const suggestion = aiText || '暂无建议';
 
     res.status(200).json({ suggestion });
   } catch (error) {
@@ -209,14 +209,14 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
         });
       }
       
-      // 保存博主到数据库
+      // 保存博主到数据库（followers 中文文本需转整数，fallback_keywords 需数组）
       const bloggersToSave = bloggersFromCoze.map((b: any) => ({
         style,
         blogger_name: b.name,
         platform: b.platform,
-        followers: b.followers || null,
+        followers: parseFollowers(b.followers),
         search_keyword: b.searchKeyword,
-        fallback_keywords: b.fallbackKeywords || [],
+        fallback_keywords: Array.isArray(b.fallbackKeywords) ? b.fallbackKeywords : [],
         reason: b.reason || '',
         verified: b.verified !== false,
         last_verified: new Date().toISOString(),
@@ -349,19 +349,18 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
 
     const messageResult: any = await messageResponse.json();
     
-    // 提取 AI 回复
+    // 提取 AI 回复（兼容 content 为字符串或多段数组）
     const messages = messageResult.data || [];
-    const aiMessage = messages.find((msg: any) => msg.role === 'assistant');
-    const aiContent = aiMessage?.content || '';
+    const aiText = extractAiText(messages);
 
-    // 尝试解析 JSON
+    // 尝试解析 JSON（用栈配对精准提取含 recommendations 键的完整 JSON 对象，
+    // 避免 Coze 返回多段独立 JSON 时贪婪正则拼接导致的 "Extra data" 错误）
     let recommendations = [];
     try {
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = extractJsonContaining(aiText, 'recommendations');
+      if (parsed) {
         recommendations = parsed.recommendations || [];
-        
+
         // 添加博主信息
         if (recommendations.length >= 2 && bloggers.length >= 2) {
           recommendations[0].blogger = {
@@ -376,7 +375,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
             verificationInfo: bloggers[0].verification_info,
             fromCache,
           };
-          
+
           recommendations[1].blogger = {
             name: bloggers[1].blogger_name,
             platform: bloggers[1].platform,
