@@ -19,7 +19,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 // 从文本中用栈配对精确提取包含指定键（如 bloggers）的完整 JSON 对象。
 // 解决 Coze 回复中混入多段独立 JSON（插件调用、搜索结果、最终答案等）时，
 // 贪婪正则 /\{[\s\S]*\}/ 会把多段拼在一起导致 JSON.parse 抛 "Extra data" 的问题。
-function extractJsonContaining(text: string, key: string): any {
+export function extractJsonContaining(text: string, key: string): any {
   const idx = text.indexOf(`"${key}"`);
   if (idx === -1) return null;
   // 向前回溯到该键所属对象的起始 '{'
@@ -58,7 +58,7 @@ function extractJsonContaining(text: string, key: string): any {
 }
 
 // 从 Coze 消息列表中提取所有 assistant 文本（兼容 content 为字符串或数组/多段）
-function extractAiText(messages: any[]): string {
+export function extractAiText(messages: any[]): string {
   let aiText = '';
   for (const msg of messages || []) {
     if (msg.role !== 'assistant') continue;
