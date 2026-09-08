@@ -45,6 +45,17 @@ const COZE_API_TOKEN = process.env.COZE_WORKLOAD_API_TOKEN || 'cztei_qimhwNZL9DR
 const COZE_API_BASE = process.env.COZE_API_BASE_URL || 'https://api.coze.cn';
 const BOT_ID = process.env.COZE_BOT_ID || '7680396415612649518';
 
+// 带超时的 fetch，避免请求无限卡死
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 40000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // AI Suggestion API - 使用扣子 Bot
 app.post('/api/v1/ai/suggestion', async (req, res) => {
   try {
@@ -57,8 +68,8 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
     }
     
     const prompts: Record<string, string> = {
-      body: '请给出一条关于身材管理的实用建议，可以是运动技巧、饮食建议、体态改善或心态调整。建议要具体、可执行、有激励性。控制在 100 字以内。',
-      wardrobe: '请给出一条关于男士穿搭的实用建议，可以是配色技巧、单品推荐、场合搭配或显瘦技巧。建议要具体、可执行、有激励性。控制在 100 字以内。',
+      body: '请给出一条关于身材管理的实用建议，可以是运动技巧、饮食建议、体态改善或心态调整。建议要具体、可执行、有激励性。控制在100字以内。',
+      wardrobe: '请给出一条关于男士穿搭的实用建议，可以是配色技巧、单品推荐、场合搭配或显瘦技巧。建议要具体、可执行、有激励性。控制在100字以内。',
     };
 
     const userMessage = prompts[type];
@@ -78,7 +89,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         // 创建对话
-        const chatResponse = await fetch(`${COZE_API_BASE}/v3/chat`, {
+        const chatResponse = await fetchWithTimeout(`${COZE_API_BASE}/v3/chat`, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -131,7 +142,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
         chat_id: chatId,
       });
 
-      const retrieveResponse = await fetch(
+      const retrieveResponse = await fetchWithTimeout(
         `${COZE_API_BASE}/v3/chat/retrieve?${params}`,
         { headers }
       );
@@ -150,7 +161,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
       chat_id: chatId,
     });
 
-    const messageResponse = await fetch(
+    const messageResponse = await fetchWithTimeout(
       `${COZE_API_BASE}/v3/chat/message/list?${messageParams}`,
       { headers }
     );
@@ -240,7 +251,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
     {
       "title": "穿搭标题",
       "description": "详细描述",
-      "items": ["单品 1", "单品 2", "单品 3"]
+      "items": ["单品1", "单品2", "单品3"]
     }
   ]
 }`;
@@ -259,7 +270,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
     // 重试机制：最多重试 3 次
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const chatResponse = await fetch(`${COZE_API_BASE}/v3/chat`, {
+        const chatResponse = await fetchWithTimeout(`${COZE_API_BASE}/v3/chat`, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -312,7 +323,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
         chat_id: chatId,
       });
 
-      const retrieveResponse = await fetch(
+      const retrieveResponse = await fetchWithTimeout(
         `${COZE_API_BASE}/v3/chat/retrieve?${params}`,
         { headers }
       );
@@ -331,7 +342,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
       chat_id: chatId,
     });
 
-    const messageResponse = await fetch(
+    const messageResponse = await fetchWithTimeout(
       `${COZE_API_BASE}/v3/chat/message/list?${messageParams}`,
       { headers }
     );
