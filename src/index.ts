@@ -136,7 +136,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
     const terminalStatuses = ["completed", "failed", "canceled"];
     let retrieveResult: any;
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const params = new URLSearchParams({
         conversation_id: conversationId,
         chat_id: chatId,
@@ -152,7 +152,7 @@ app.post('/api/v1/ai/suggestion', async (req, res) => {
         break;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
     // 获取对话消息
@@ -317,7 +317,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
     const terminalStatuses = ["completed", "failed", "canceled"];
     let retrieveResult: any;
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const params = new URLSearchParams({
         conversation_id: conversationId,
         chat_id: chatId,
@@ -333,7 +333,7 @@ app.post('/api/v1/ai/outfit-recommendation', async (req, res) => {
         break;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
     // 获取对话消息
