@@ -5,6 +5,17 @@ const COZE_API_TOKEN = process.env.COZE_WORKLOAD_API_TOKEN || 'cztei_qimhwNZL9DR
 const COZE_API_BASE = process.env.COZE_API_BASE_URL || 'https://api.coze.cn';
 const BOT_ID = process.env.COZE_BOT_ID || '7680396415612649518';
 
+// 带超时的 fetch，避免请求无限卡死
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 40000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // 获取有效的博主（缓存优先）
 export async function getActiveBloggers(style: string): Promise<OutfitBlogger[] | null> {
   const client = getSupabaseClient();
@@ -176,7 +187,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
   // 重试机制：最多重试 3 次
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const chatResponse = await fetch(`${COZE_API_BASE}/v3/chat`, {
+      const chatResponse = await fetchWithTimeout(`${COZE_API_BASE}/v3/chat`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -229,7 +240,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
       chat_id: chatId,
     });
 
-    const retrieveResponse = await fetch(
+    const retrieveResponse = await fetchWithTimeout(
       `${COZE_API_BASE}/v3/chat/retrieve?${params}`,
       { headers }
     );
@@ -248,7 +259,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
     chat_id: chatId,
   });
 
-  const messageResponse = await fetch(
+  const messageResponse = await fetchWithTimeout(
     `${COZE_API_BASE}/v3/chat/message/list?${messageParams}`,
     { headers }
   );
@@ -317,7 +328,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
   };
 
   try {
-    const chatResponse = await fetch(`${COZE_API_BASE}/v3/chat`, {
+    const chatResponse = await fetchWithTimeout(`${COZE_API_BASE}/v3/chat`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -354,7 +365,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
         chat_id: chatId,
       });
 
-      const retrieveResponse = await fetch(
+      const retrieveResponse = await fetchWithTimeout(
         `${COZE_API_BASE}/v3/chat/retrieve?${params}`,
         { headers }
       );
@@ -373,7 +384,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
       chat_id: chatId,
     });
 
-    const messageResponse = await fetch(
+    const messageResponse = await fetchWithTimeout(
       `${COZE_API_BASE}/v3/chat/message/list?${messageParams}`,
       { headers }
     );
