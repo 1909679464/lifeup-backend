@@ -74,6 +74,25 @@ export function extractAiText(messages: any[]): string {
   return aiText;
 }
 
+// 将粉丝数中文字符串（如 "12万+"、"10万+"、"1.5万"、"1000"）解析为整数。
+// 数据库 followers 列为 integer，直接存中文文本会报 22P02 类型错误。
+export function parseFollowers(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // 提取数字部分（含小数）
+  const numMatch = str.match(/\d+(\.\d+)?/);
+  if (!numMatch) return null;
+  const num = parseFloat(numMatch[0]);
+
+  // 判断是否含“万/万+”
+  if (/万/.test(str)) {
+    return Math.round(num * 10000);
+  }
+  return Math.round(num);
+}
+
 // 获取有效的博主（缓存优先）
 export async function getActiveBloggers(style: string): Promise<OutfitBlogger[] | null> {
   const client = getSupabaseClient();
@@ -504,9 +523,9 @@ export async function verifyAllBloggers(): Promise<void> {
             style: blogger.style,
             blogger_name: newBlogger.name,
             platform: newBlogger.platform,
-            followers: newBlogger.followers || null,
+            followers: parseFollowers(newBlogger.followers),
             search_keyword: newBlogger.searchKeyword,
-            fallback_keywords: newBlogger.fallbackKeywords || [],
+            fallback_keywords: Array.isArray(newBlogger.fallbackKeywords) ? newBlogger.fallbackKeywords : [],
             reason: newBlogger.reason || '',
             verified: newBlogger.verified !== false,
             last_verified: new Date(),
