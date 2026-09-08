@@ -16,6 +16,64 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
+// 从文本中用栈配对精确提取包含指定键（如 bloggers）的完整 JSON 对象。
+// 解决 Coze 回复中混入多段独立 JSON（插件调用、搜索结果、最终答案等）时，
+// 贪婪正则 /\{[\s\S]*\}/ 会把多段拼在一起导致 JSON.parse 抛 "Extra data" 的问题。
+function extractJsonContaining(text: string, key: string): any {
+  const idx = text.indexOf(`"${key}"`);
+  if (idx === -1) return null;
+  // 向前回溯到该键所属对象的起始 '{'
+  let start = idx;
+  while (start >= 0 && text[start] !== '{') start--;
+  if (start < 0) return null;
+
+  // 用栈匹配从 start 开始配对的完整 JSON 对象
+  let depth = 0;
+  let inString = false;
+  let esc = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// 从 Coze 消息列表中提取所有 assistant 文本（兼容 content 为字符串或数组/多段）
+function extractAiText(messages: any[]): string {
+  let aiText = '';
+  for (const msg of messages || []) {
+    if (msg.role !== 'assistant') continue;
+    const c = msg.content;
+    if (typeof c === 'string') {
+      aiText += c + '\n';
+    } else if (Array.isArray(c)) {
+      for (const part of c) {
+        if (part && typeof part.text === 'string') aiText += part.text + '\n';
+      }
+    }
+  }
+  return aiText;
+}
+
 // 获取有效的博主（缓存优先）
 export async function getActiveBloggers(style: string): Promise<OutfitBlogger[] | null> {
   const client = getSupabaseClient();
@@ -230,7 +288,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
     throw new Error('AI 服务调用失败，请稍后重试');
   }
 
-  // 轮询等待对话完成
+  // 轮询等待对话完成（最长等待约 120 秒，Coze 联网搜索生成通常需要 40~60 秒）
   const terminalStatuses = ["completed", "failed", "canceled"];
   let retrieveResult: any;
 
@@ -266,22 +324,15 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
 
   const messageResult: any = await messageResponse.json();
   
-  // 提取 AI 回复
+  // 提取 AI 回复（兼容 content 为数组/多段）
   const messages = messageResult.data || [];
-  const aiMessage = messages.find((msg: any) => msg.role === 'assistant');
-  const aiContent = aiMessage?.content || '';
+  const aiText = extractAiText(messages);
 
-  // 尝试解析 JSON
-  try {
-    const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.bloggers || [];
-    }
-  } catch (e) {
-    console.error('Failed to parse AI response:', e);
+  // 解析 JSON：用栈配对精确取包含 bloggers 键的单个对象，避免多段 JSON 混拼导致解析失败
+  const parsed = extractJsonContaining(aiText, 'bloggers');
+  if (parsed && Array.isArray(parsed.bloggers)) {
+    return parsed.bloggers;
   }
-
   return [];
 }
 
@@ -355,7 +406,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
     const conversationId = chatResult.data.conversation_id;
     const chatId = chatResult.data.id;
 
-    // 轮询等待完成
+    // 轮询等待完成（最长等待约 120 秒）
     const terminalStatuses = ['completed', 'failed', 'canceled'];
     let retrieveResult: any;
 
@@ -391,15 +442,12 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
 
     const messageResult: any = await messageResponse.json();
     const messages = messageResult.data || [];
-    const aiMessage = messages.find((msg: any) => msg.role === 'assistant');
-    const aiContent = aiMessage?.content || '';
+    const aiContent = extractAiText(messages);
 
     // 解析 JSON
     try {
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        
+      const parsed = extractJsonContaining(aiContent, 'isValid');
+      if (parsed) {
         // 如果改名，更新名称
         if (parsed.newName && parsed.newName !== blogger.blogger_name) {
           await client
