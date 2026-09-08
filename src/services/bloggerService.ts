@@ -234,7 +234,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
   const terminalStatuses = ["completed", "failed", "canceled"];
   let retrieveResult: any;
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 60; i++) {
     const params = new URLSearchParams({
       conversation_id: conversationId,
       chat_id: chatId,
@@ -250,7 +250,7 @@ export async function searchBloggersFromCoze(style: string): Promise<any> {
       break;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   // 获取对话消息
@@ -359,7 +359,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
     const terminalStatuses = ['completed', 'failed', 'canceled'];
     let retrieveResult: any;
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const params = new URLSearchParams({
         conversation_id: conversationId,
         chat_id: chatId,
@@ -375,7 +375,7 @@ export async function verifyBlogger(bloggerId: number): Promise<{ isValid: boole
         break;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
     // 获取消息
